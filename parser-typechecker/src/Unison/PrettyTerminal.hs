@@ -1,6 +1,6 @@
 module Unison.PrettyTerminal where
 
-import           Unison.Util.Less              (less)
+import           Unison.Util.Less              (less, pPutStr, PagerHandle)
 import qualified Unison.Util.Pretty            as P
 import qualified Unison.Util.ColorText         as CT
 import qualified System.Console.Terminal.Size  as Terminal
@@ -17,6 +17,12 @@ putPrettyLn p | p == mempty = pure ()
 putPrettyLn p = do
   width <- getAvailableWidth
   less . P.toANSI width $ P.border 2 p
+
+putPrettyLnPager :: P.Pretty CT.ColorText -> PagerHandle -> IO ()
+putPrettyLnPager p _ | p == mempty = pure ()
+putPrettyLnPager p pgr = do
+  width <- getAvailableWidth
+  pPutStr pgr . P.toANSI width $ P.border 2 p
 
 putPrettyLnUnpaged :: P.Pretty CT.ColorText -> IO ()
 putPrettyLnUnpaged p | p == mempty = pure ()
@@ -45,6 +51,10 @@ putPretty' p = do
 getAvailableWidth :: IO Int
 getAvailableWidth =
   maybe 80 (\s -> 100 `min` Terminal.width s) <$> Terminal.size
+
+putPrettyNonemptyPager :: P.Pretty P.ColorText -> PagerHandle -> IO ()
+putPrettyNonemptyPager msg p = do
+  if msg == mempty then pure () else putPrettyLnPager msg p
 
 putPrettyNonempty :: P.Pretty P.ColorText -> IO ()
 putPrettyNonempty msg = do
