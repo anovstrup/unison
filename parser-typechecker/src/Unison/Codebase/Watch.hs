@@ -10,6 +10,7 @@ import qualified UnliftIO                       as UnliftIO
 import           UnliftIO.Concurrent            ( forkIO
                                                 , threadDelay
                                                 , killThread
+                                                , myThreadId
                                                 )
 import           UnliftIO                       ( MonadUnliftIO
                                                 , withRunInIO
@@ -50,7 +51,11 @@ watchDirectory' d = do
           Modified fp t False -> doIt fp t
           _                   -> pure ()
           where doIt fp t = do
+                  tid <- myThreadId
+                  liftIO $ putStrLn "--- change detect ---"
+                  liftIO . traceIO $ "watchDirectory' detected change (1) " <> show tid
                   _ <- tryTakeMVar mvar
+                  liftIO . traceIO $ "watchDirectory' detected change (2) " <> show tid
                   putMVar mvar (fp, t)
     -- janky: used to store the cancellation action returned
     -- by `watchDir`, which is created asynchronously
@@ -60,7 +65,9 @@ watchDirectory' d = do
     let config = FSNotify.defaultConfig { FSNotify.confDebounce = FSNotify.NoDebounce } 
     cancel <- forkIO $ withRunInIO $ \inIO ->
       FSNotify.withManagerConf config $ \mgr -> do
-        cancelInner <- FSNotify.watchDir mgr d (const True) (inIO . handler) <|> (pure (pure ()))
+        tid <- myThreadId
+        traceIO $ "Starting watch on thread " <> show tid
+        cancelInner <- FSNotify.watchDir mgr d (const True) (inIO . handler) -- <|> (pure (pure ()))
         putMVar cleanupRef $ liftIO cancelInner
         forever $ threadDelay 1000000
     let cleanup :: m ()
@@ -125,6 +132,7 @@ watchDirectory dir allow = do
     takeMVar gate -- wait until gate open before starting
     forever $ do
       event@(file, _) <- UnliftIO.unliftIO ctx watcher
+      liftIO . traceIO $ "enqueuing event soon..."
       when (allow file) $
         STM.atomically $ TQueue.enqueue queue event
   pending <- newIORef =<< existingFiles
@@ -137,7 +145,7 @@ watchDirectory dir allow = do
         -- this debounces the events, waits for 50ms pause
         -- in file change events
         events <- collectUntilPause queue 50000
-        -- traceM $ "Collected file change events" <> show events
+        liftIO . traceIO $ "Collected file change events" <> show events
         case events of
           [] -> pure Nothing 
           -- we pick the last of the events within the 50ms window 

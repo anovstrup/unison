@@ -8,6 +8,8 @@ module Unison.CommandLine.Main where
 
 import Unison.Prelude
 
+import Control.Concurrent (myThreadId)
+import Control.Concurrent.MVar
 import Control.Concurrent.STM (atomically)
 import Control.Exception (finally)
 import Control.Monad.State (runStateT)
@@ -36,6 +38,8 @@ import qualified Unison.Codebase.Path as Path
 import qualified Unison.Codebase.Runtime as Runtime
 import qualified Unison.Codebase as Codebase
 import qualified Unison.CommandLine.InputPattern as IP
+import           Unison.Util.Less as Less
+import qualified Unison.Util.ColorText as CT
 import qualified Unison.Util.Pretty as P
 import qualified Unison.Util.TQueue as Q
 import Text.Regex.TDFA
@@ -67,8 +71,9 @@ getUserInput
   -> Branch m
   -> Path.Absolute
   -> [String]
+  -> (P.Pretty CT.ColorText -> IO ())
   -> m Input
-getUserInput patterns codebase branch currentPath numberedArgs =
+getUserInput patterns codebase branch currentPath numberedArgs notifyUser =
   Line.runInputT settings go
  where
   go = do
@@ -82,7 +87,8 @@ getUserInput patterns codebase branch currentPath numberedArgs =
           ws ->
             case parseInput patterns . (>>= expandNumber numberedArgs) $ ws  of
               Left msg -> do
-                liftIO $ putPrettyLn msg
+                --liftIO $ putPrettyLn msg
+                liftIO $ notifyUser msg
                 go
               Right i -> pure i
   settings    = Line.Settings tabComplete (Just ".unisonHistory") True
@@ -166,6 +172,7 @@ main dir initialPath configFile initialInputs startRuntime codebase = do
     pathRef                  <- newIORef initialPath
     initialInputsRef         <- newIORef initialInputs
     numberedArgsRef          <- newIORef []
+    pagerHandle              <- newEmptyMVar
     (config, cancelConfig)   <-
       catchIOError (watchConfig configFile) $ \_ ->
         die "Your .unisonConfig could not be loaded. Check that it's correct!"
@@ -178,22 +185,68 @@ main dir initialPath configFile initialInputs startRuntime codebase = do
           Map.fromList
             $   validInputs
             >>= (\p -> (patternName p, p) : ((, p) <$> aliases p))
+        getNewPager = do
+          traceIO "Creating new pager"
+          h <- Less.createPager
+          putMVar pagerHandle h
+          return h
+        getPager = do
+          mh <- tryReadMVar pagerHandle
+          case mh of
+            Nothing -> getNewPager
+            Just h -> do
+              running <- Less.isRunning h
+              if running then pure h else do
+                traceIO "Swapping in new pager"
+                h' <- Less.createPager
+                swapMVar pagerHandle h'
+                pure h'
+        waitForPagerTermination = do
+          mh <- tryReadMVar pagerHandle
+          case mh of
+            Just h -> Less.pWaitForTermination h
+            Nothing -> pure ()
+        terminatePager = do
+          mh <- tryTakeMVar pagerHandle
+          case mh of
+            Nothing -> pure ()
+            Just h -> do
+              Less.pTerminate h
+        notify = notifyUser dir >=> (\o -> do
+          p <- getPager
+          putPrettyNonemptyPager o p)
         getInput = do
           root <- readIORef rootRef
           path <- readIORef pathRef
           numberedArgs <- readIORef numberedArgsRef
-          getUserInput patternMap codebase root path numberedArgs
+          traceIO "Waiting for pager to terminate"
+          waitForPagerTermination
+          traceIO "Prompting user"
+          getUserInput patternMap codebase root path numberedArgs (\o -> do
+            p <- getPager
+            putPrettyLnPager o p
+            tid <- myThreadId
+            traceIO $ "Waiting for pager to terminate on thread " <> show tid
+            waitForPagerTermination)
     let
       awaitInput = do
         -- use up buffered input before consulting external events
         i <- readIORef initialInputsRef
         case i of
           h:t -> writeIORef initialInputsRef t >> pure h
-          [] ->
+          [] -> do
             -- Race the user input and file watch.
-            Async.race (atomically $ Q.peek eventQueue) getInput >>= \case
-              Left _ -> Left <$> atomically (Q.dequeue eventQueue)
+            tid <- myThreadId
+            traceIO $ "Racing on thread " <> show tid
+            res <- Async.race (atomically $ Q.peek eventQueue) getInput
+            case res of
+              Left _ -> do
+                traceIO "Change detected!"
+                e <- Left <$> atomically (Q.dequeue eventQueue)
+                terminatePager
+                pure e
               x      -> pure x
+
       cleanup = do
         Runtime.terminate runtime
         cancelConfig
@@ -205,7 +258,7 @@ main dir initialPath configFile initialInputs startRuntime codebase = do
         (o, state') <- HandleCommand.commandLine config awaitInput
                                      (writeIORef rootRef)
                                      runtime
-                                     (notifyUser dir >=> putPrettyNonempty)
+                                     notify
                                      codebase
                                      free
         case o of

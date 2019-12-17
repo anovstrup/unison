@@ -53,6 +53,7 @@ watchFileSystem q dir = do
   (cancel, watcher) <- Watch.watchDirectory dir allow
   t <- forkIO . forever $ do
     (filePath, text) <- watcher
+    traceIO "Enqueueing now!!!"
     atomically . Q.enqueue q $ UnisonFileChanged (Text.pack filePath) text
   pure (cancel >> killThread t)
 
