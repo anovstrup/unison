@@ -10,7 +10,7 @@ import qualified Unison.DataDeclaration as DD
 import           Unison.DataDeclaration  ( DataDeclaration'(..), Decl, hashDecls )
 import qualified Unison.Hash            as Hash
 import           Unison.Parser           ( Ann )
-import           Unison.Parsers          ( unsafeParseFile )
+import           Unison.Syntax.Default.Parsers ( unsafeParseFile )
 import qualified Unison.Reference       as R
 import           Unison.Symbol           ( Symbol )
 import qualified Unison.Test.Common     as Common

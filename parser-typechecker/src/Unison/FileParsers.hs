@@ -23,11 +23,11 @@ import qualified Unison.Blank               as Blank
 import qualified Unison.Name                as Name
 import qualified Unison.Names3              as Names
 import           Unison.Parser              (Ann)
-import qualified Unison.Parsers             as Parsers
 import qualified Unison.Referent            as Referent
 import           Unison.Reference           (Reference)
 import           Unison.Result              (Note (..), Result, pattern Result, ResultT, CompilerBug(..))
 import qualified Unison.Result              as Result
+import           Unison.Syntax              (Syntax, parseFile)
 import           Unison.Term                (AnnotatedTerm)
 import qualified Unison.Term                as Term
 import qualified Unison.Type
@@ -60,6 +60,7 @@ parseAndSynthesizeFile
   :: (Var v, Monad m)
   => [Type v]
   -> (Set Reference -> m (TL.TypeLookup v Ann))
+  -> Syntax v
   -> Parser.ParsingEnv
   -> FilePath
   -> Text
@@ -67,8 +68,8 @@ parseAndSynthesizeFile
        (Seq (Note v Ann))
        m
        (Either Names0 (UF.TypecheckedUnisonFile v Ann))
-parseAndSynthesizeFile ambient typeLookupf env filePath src = do
-  uf <- Result.fromParsing $ Parsers.parseFile filePath (unpack src) env
+parseAndSynthesizeFile ambient typeLookupf syntax env filePath src = do
+  uf <- Result.fromParsing $ parseFile syntax filePath (unpack src) env
   let names0 = Names.currentNames (Parser.names env)
   (tm, tdnrMap, typeLookup) <- resolveNames typeLookupf names0 uf
   let (Result notes' r) = synthesizeFile ambient typeLookup tdnrMap uf tm

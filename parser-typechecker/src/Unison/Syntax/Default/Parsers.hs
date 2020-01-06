@@ -1,4 +1,4 @@
-module Unison.Parsers where
+module Unison.Syntax.Default.Parsers where
 
 import Unison.Prelude
 
@@ -85,4 +85,3 @@ unsafeParseFileBuiltinsOnly =
 unsafeParseFile
   :: String -> Parser.ParsingEnv -> UnisonFile Symbol Ann
 unsafeParseFile s pEnv = unsafeGetRightFrom s $ parseFile "" s pEnv
-

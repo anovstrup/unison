@@ -14,6 +14,7 @@ import Text.RawString.QQ (r)
 import Unison.Codebase.CodeLookup (CodeLookup(..))
 import Unison.FileParsers (parseAndSynthesizeFile)
 import Unison.Parser (Ann(..))
+import Unison.Syntax.Default (defaultSyntax)
 import Unison.Symbol (Symbol)
 import qualified Data.Map as Map
 import qualified Unison.Builtin as Builtin
@@ -32,7 +33,8 @@ typecheckedFile = let
   tl :: a -> Identity (TL.TypeLookup Symbol Ann)
   tl = const $ pure (External <$ Builtin.typeLookup)
   env = Parser.ParsingEnv mempty (Names.Names Builtin.names0 mempty)
-  r = parseAndSynthesizeFile [] tl env "<IO.u builtin>" source
+  -- TODO use alternate syntax if specified
+  r = parseAndSynthesizeFile [] tl defaultSyntax env "<IO.u builtin>" source
   in case runIdentity $ Result.runResultT r of
     (Nothing, notes) -> error $ "parsing failed: " <> show notes
     (Just Left{}, notes) -> error $ "typechecking failed" <> show notes
@@ -150,8 +152,8 @@ type Either a b = Left a | Right b
 
 type Optional a = None | Some a
 
-d1 Doc.++ d2 = 
-  use Doc 
+d1 Doc.++ d2 =
+  use Doc
   case (d1,d2) of
     (Join ds, Join ds2) -> Join (ds Sequence.++ ds2)
     (Join ds, _) -> Join (ds `Sequence.snoc` d2)

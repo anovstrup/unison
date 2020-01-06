@@ -16,6 +16,7 @@ import           Unison.Parser (Ann(..))
 import           Unison.PrintError              ( prettyParseError )
 import           Unison.Result (Result, Note)
 import           Unison.Symbol (Symbol)
+import           Unison.Syntax.Default (defaultSyntax)
 import           Unison.Term (AnnotatedTerm)
 import           Unison.Var (Var)
 import           Unison.UnisonFile (TypecheckedUnisonFile)
@@ -68,6 +69,7 @@ parseAndSynthesizeAsFile
 parseAndSynthesizeAsFile ambient filename s = FP.parseAndSynthesizeFile
   ambient
   (\_deps -> pure B.typeLookup)
+  defaultSyntax
   parsingEnv
   filename
   (Text.pack s)

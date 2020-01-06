@@ -34,10 +34,11 @@ import qualified Unison.Codebase.Editor.Git    as Git
 import qualified Unison.Hash                   as Hash
 import           Unison.Parser                  ( Ann )
 import qualified Unison.Parser                 as Parser
-import qualified Unison.Parsers                as Parsers
 import qualified Unison.Reference              as Reference
 import qualified Unison.Codebase.Runtime       as Runtime
 import           Unison.Codebase.Runtime       (Runtime)
+import           Unison.Syntax                  ( parseType )
+import           Unison.Syntax.Default          ( defaultSyntax )
 import qualified Unison.Term                   as Term
 import qualified Unison.UnisonFile             as UF
 import           Unison.Util.Free               ( Free )
@@ -62,6 +63,7 @@ typecheck
 typecheck ambient codebase parsingEnv sourceName src =
   Result.getResult $ parseAndSynthesizeFile ambient
     (((<> B.typeLookup) <$>) . Codebase.typeLookupForDependencies codebase)
+    defaultSyntax -- TODO use alternate syntax when specified
     parsingEnv
     (Text.unpack sourceName)
     (fst src)
@@ -156,7 +158,8 @@ commandLine config awaitInput setBranchRef rt notifyUser loadSource codebase =
       tmp <- tempGitDir url commit
       runExceptT $ Git.pullGitBranch tmp codebase url commit (Right sbh)
     ParseType names (src, _) -> pure $
-      Parsers.parseType (Text.unpack src) (Parser.ParsingEnv mempty names)
+      -- TODO use alternative syntax if specified
+      parseType defaultSyntax (Text.unpack src) (Parser.ParsingEnv mempty names)
 
 --    Todo b -> doTodo codebase (Branch.head b)
 --    Propagate b -> do

@@ -27,13 +27,13 @@ import           Unison.DataDeclaration ( DataDeclaration
                                         , EffectDeclaration'
                                         )
 import           Unison.Parser          as Parser
-import qualified Unison.Parsers         as Parsers
 import qualified Unison.PrettyPrintEnv  as PPE
 import qualified Unison.PrintError      as PrintError
 import           Unison.Reference       ( Reference )
 import           Unison.Result          (pattern Result, Result)
 import qualified Unison.Result          as Result
 import qualified Unison.Runtime.Rt1IO   as RT
+import qualified Unison.Syntax.Default.Parsers as Parsers
 import           Unison.Symbol          (Symbol)
 import qualified Unison.Term            as Term
 import           Unison.Term            ( AnnotatedTerm, Term, amap )

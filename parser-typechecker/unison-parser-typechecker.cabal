@@ -88,7 +88,6 @@ library
     Unison.Lexer
     Unison.NamePrinter
     Unison.Parser
-    Unison.Parsers
     Unison.Path
     Unison.PrettyPrintEnv
     Unison.PrettyTerminal
@@ -101,6 +100,9 @@ library
     Unison.Runtime.IOSource
     Unison.Runtime.Vector
     Unison.Runtime.SparseVector
+    Unison.Syntax
+    Unison.Syntax.Default
+    Unison.Syntax.Default.Parsers
     Unison.TermParser
     Unison.TermPrinter
     Unison.TypeParser
