@@ -8,12 +8,14 @@ module Unison.Syntax where
 --import Unison.Names3 (Names)
 --import qualified Unison.Names3 as Names
 import Unison.DataDeclaration (DataDeclaration', EffectDeclaration')
+import Unison.HashQualified (HashQualified)
 import Unison.Parser ( Ann
                      --, UniqueName
                      , Err
                      , ParsingEnv
                      )
 import           Unison.PrettyPrintEnv          ( PrettyPrintEnv )
+import Unison.Reference (Reference)
 import Unison.Term (AnnotatedTerm)
 import Unison.Type (Type)
 import Unison.UnisonFile
@@ -25,27 +27,10 @@ data Syntax v = Syntax {
     parseFile     :: FilePath -> String -> ParsingEnv -> Either (ParsingErr v) (UnisonFile v Ann)
   , parseType     :: String -> ParsingEnv -> Either (ParsingErr v) (Type v Ann)
   -- Pretty (ColorText, Ann) instead of Pretty ColorText would support adding location-based highlighting after the fact
-  , pretty        :: forall c . Construct v c => PrettyPrintEnv -> c -> Pretty ColorText }
-
-class Construct v c | c -> v where
-  switch :: forall r .
-    (AnnotatedTerm v Ann -> r) ->
-    (Type v Ann -> r) ->
-    (DataDeclaration' v Ann -> r) ->
-    (EffectDeclaration' v Ann -> r) ->
-    (c -> r)
-
-instance Construct v (AnnotatedTerm v Ann) where
-  switch x _ _ _ = x
-
-instance Construct v (Type v Ann) where
-  switch _ x _ _ = x
-
-instance Construct v (DataDeclaration' v Ann) where
- switch _ _ x _ = x
-
-instance Construct v (EffectDeclaration' v Ann) where
- switch _ _ _ x = x
+  , prettyTerm    :: PrettyPrintEnv -> AnnotatedTerm v Ann -> Pretty ColorText
+  , prettyType    :: PrettyPrintEnv -> Type v Ann -> Pretty ColorText
+  , prettyData    :: PrettyPrintEnv -> Reference -> HashQualified -> DataDeclaration' v Ann -> Pretty ColorText
+  , prettyAbility :: PrettyPrintEnv -> Reference -> HashQualified -> EffectDeclaration' v Ann -> Pretty ColorText }
 
 -- this type should be defined in this module, rather than in Parser (which will move to Syntax/Default)
 --data ParsingEnv = ParsingEnv {
